@@ -1,18 +1,10 @@
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
+// Re-export Supabase client as 'prisma' for backward compatibility
+// This allows gradual migration without breaking existing imports
+import { supabase as supabaseClient, getServiceClient } from "./supabase";
 
-const globalForPrisma = globalThis;
+export const prisma = getServiceClient();
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
+export const getClient = () => prisma;
 
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    adapter,
-    log:
-      process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-  });
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Also export supabase-specific clients for new code
+export { supabaseClient, getServiceClient };
