@@ -1,7 +1,6 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
-
+// No-op Providers - no authentication required
 export function Providers({ children }) {
-  return <SessionProvider>{children}</SessionProvider>;
+  return children;
 }

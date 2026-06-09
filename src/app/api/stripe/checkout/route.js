@@ -1,19 +1,15 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { BillingService } from "@/lib/services/billing";
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
+    // No auth required - public endpoint
     const { price, credits } = await req.json();
+    
+    // Use a default/guest user for unauthenticated requests
+    const guestUserId = "guest";
     const checkoutUrl = await BillingService.createCheckoutSession(
-      session.user.id, 
+      guestUserId, 
       price, 
       credits
     );
