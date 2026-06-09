@@ -1,14 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useSession, signIn } from "next-auth/react";
 import { motion } from "framer-motion";
-import { FaBolt, FaCoins, FaCheckCircle, FaStar } from "react-icons/fa";
-import { useRouter } from "next/navigation";
+import { FaBolt, FaCoins, FaCheckCircle } from "react-icons/fa";
 
 export default function PricingPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
   const [loadingTier, setLoadingTier] = useState(null);
 
   const tiers = [
@@ -54,11 +50,6 @@ export default function PricingPage() {
   ];
 
   const handleCheckout = async (price, credits, tierName) => {
-    if (status !== "authenticated") {
-      signIn();
-      return;
-    }
-
     try {
       setLoadingTier(tierName);
       const res = await fetch("/api/stripe/checkout", {
@@ -181,26 +172,6 @@ export default function PricingPage() {
           </motion.div>
         ))}
       </div>
-
-      {/* Credit Counter Hook */}
-      <footer className="max-w-7xl mx-auto py-12 border-t border-glass-border flex flex-col md:flex-row items-center justify-between gap-8">
-        <div className="space-y-2 text-center md:text-left">
-          <div className="text-[10px] font-semibold tracking-[0.4em] text-muted uppercase">
-            Kinetic Stats
-          </div>
-          <div className="text-lg font-medium flex items-center gap-3 text-gray-700">
-            Currently Holding:{" "}
-            <span className="text-foreground font-semibold">
-              {session?.user?.credits || 0} Credits
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-4 text-muted text-[10px] font-semibold uppercase tracking-widest text-center">
-          <FaStar className="text-yellow-500/30 hidden sm:block" /> Secure
-          Encryption via Stripe{" "}
-          <FaStar className="text-yellow-500/30 hidden sm:block" />
-        </div>
-      </footer>
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {

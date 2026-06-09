@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaMagic,
@@ -13,20 +12,15 @@ import { downloadImage } from "@/lib/utils";
 import { FiDownload } from "react-icons/fi";
 
 export default function CreationsPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+   const router = useRouter();
   const [creations, setCreations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
-    if (status === "authenticated") {
-      fetchCreations();
-    } else if (status === "unauthenticated") {
-      router.push("/");
-    }
-  }, [status]);
+    fetchCreations();
+  }, []);
 
   const fetchCreations = async () => {
     try {
@@ -51,7 +45,7 @@ export default function CreationsPage() {
     }
   };
 
-  if (status === "loading" || loading) {
+  if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-transparent">
         <motion.div
