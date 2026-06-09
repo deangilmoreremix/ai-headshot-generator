@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getServiceClient } from "@/lib/supabase";
 
 export async function POST(req) {
+  const supabase = getServiceClient();
   try {
     const data = await req.json();
     const requestId = data.id;
@@ -11,9 +12,20 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing request id" }, { status: 400 });
     }
 
-    const creation = await prisma.creation.findUnique({
-      where: { requestId }
-    });
+    const { data: creation, error: fetchError } = await supabase
+      .from('creations')
+      .select()
+      .eq('request_id', requestId)
+      .single();
+
+    if (fetchError) {
+      // Check if it's a "not found" error
+      if (fetchError.code !== 'PGRST116') {
+        console.error("[MUAPI_WEBHOOK_ERROR]", fetchError);
+      }
+      console.warn(`[MUAPI_WEBHOOK] Creation with requestId ${requestId} not found.`);
+      return NextResponse.json({ error: "Creation not found" }, { status: 404 });
+    }
 
     if (!creation) {
       console.warn(`[MUAPI_WEBHOOK] Creation with requestId ${requestId} not found.`);
@@ -21,26 +33,30 @@ export async function POST(req) {
     }
 
     if (data.error && data.error !== "") {
-      await prisma.creation.update({
-        where: { id: creation.id },
-        data: {
+      const { error: updateError } = await supabase
+        .from('creations')
+        .update({
           status: "failed",
           error: data.error
-        }
-      });
+        })
+        .eq('id', creation.id);
+      
+      if (updateError) console.error("[MUAPI_WEBHOOK_ERROR]", updateError);
       // Credits refund logic could go here if implemented
     } else {
       const outputs = data.outputs || [];
       const imageUrl = JSON.stringify(outputs);
 
-      await prisma.creation.update({
-        where: { id: creation.id },
-        data: {
+      const { error: updateError } = await supabase
+        .from('creations')
+        .update({
           status: "completed",
-          imageUrl: imageUrl,
-          isPack: true,
-        }
-      });
+          image_url: imageUrl,
+          is_pack: true,
+        })
+        .eq('id', creation.id);
+      
+      if (updateError) console.error("[MUAPI_WEBHOOK_ERROR]", updateError);
     }
 
     return NextResponse.json({ success: true });

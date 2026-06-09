@@ -1,22 +1,9 @@
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import GoogleProvider from "next-auth/providers/google";
-import { prisma } from "./prisma";
+// No-op auth module - no authentication required
+// All auth checks and session requirements have been removed as per requirements
 
-export const authOptions = {
-  adapter: PrismaAdapter(prisma),
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
-  ],
-  callbacks: {
-    async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
-        session.user.credits = user.credits;
-      }
-      return session;
-    },
-  },
-};
+export const authOptions = {};
+
+export const getServerSession = async () => null;
+
+// No sign-in walls - all operations are public
+export const requireAuth = () => null;

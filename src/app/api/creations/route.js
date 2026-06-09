@@ -1,26 +1,21 @@
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import { getServiceClient } from '@/lib/supabase';
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-
-  if (!session || !session.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+  const supabase = getServiceClient();
   try {
-    const creations = await prisma.creation.findMany({
-      where: { 
-        userId: session.user.id
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const { data, error } = await supabase
+      .from('creations')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    return NextResponse.json(creations);
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(data || []);
   } catch (error) {
-    console.error("Fetch creations error:", error);
-    return NextResponse.json({ error: "Failed to fetch creations" }, { status: 500 });
+    console.error('Fetch creations error:', error);
+    return NextResponse.json({ error: 'Failed to fetch creations' }, { status: 500 });
   }
 }
