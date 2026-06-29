@@ -3,9 +3,15 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { FaBolt, FaCoins, FaCheckCircle } from "react-icons/fa";
+import { useAnonymousId } from "@/hooks/useAnonymousId";
+import { useCredits } from "@/hooks/useCredits";
+import { CreditBadge } from "@/components/saas/CreditBadge";
 
 export default function PricingPage() {
   const [loadingTier, setLoadingTier] = useState(null);
+  const [message, setMessage] = useState(null);
+  const anonymousId = useAnonymousId();
+  const { credits, refresh } = useCredits();
 
   const tiers = [
     {
@@ -52,15 +58,25 @@ export default function PricingPage() {
   const handleCheckout = async (price, credits, tierName) => {
     try {
       setLoadingTier(tierName);
+      setMessage(null);
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-anonymous-id": anonymousId || "",
+        },
         body: JSON.stringify({ price, credits }),
       });
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "Failed to claim credits" });
+        return;
+      }
+      setMessage({ type: "success", text: `Added ${credits.toLocaleString()} credits to your account!` });
+      await refresh();
     } catch (err) {
-      console.error("Stripe error", err);
+      console.error("Checkout error", err);
+      setMessage({ type: "error", text: "Unexpected error" });
     } finally {
       setLoadingTier(null);
     }
@@ -69,6 +85,9 @@ export default function PricingPage() {
   return (
     <div className="flex-1 bg-transparent overflow-y-auto custom-scrollbar p-4 md:p-12">
       <header className="max-w-7xl mx-auto mb-16 text-center space-y-4 pt-4 md:pt-0">
+        <div className="flex justify-end max-w-7xl mx-auto">
+          <CreditBadge credits={credits} />
+        </div>
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400 text-[10px] font-semibold tracking-[0.4em] uppercase">
           Establish your professional presence
         </div>
@@ -80,6 +99,17 @@ export default function PricingPage() {
           access. <br />
           Choose your portrait session.
         </p>
+        {message && (
+          <div
+            className={`mx-auto inline-block px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-widest ${
+              message.type === "success"
+                ? "bg-green-500/10 text-green-500 border border-green-500/20"
+                : "bg-red-500/10 text-red-500 border border-red-500/20"
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
       </header>
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 pb-20">

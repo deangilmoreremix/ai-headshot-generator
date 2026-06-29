@@ -1,31 +1,35 @@
-import { prisma } from "@/lib/prisma";
+import { getServiceClient } from "@/lib/supabase";
 import { UserService } from "./user";
 import config from "@/lib/config";
 
 /**
- * Service to manage AI Headshot Studio generations using muapi.ai
+ * Service to manage AI Headshot Studio generations using muapi.ai.
+ * All generations persist to Supabase and credit deductions are
+ * tracked per anonymous user.
  */
 export const AIService = {
-  /**
-   * Defines the fixed cost for a professional photo pack
-   */
   getCreditCost() {
-    return 60;
+    return config.credits.headshotCost;
   },
 
   /**
-   * Execute a headshot generation quest using muapi.ai photo-pack
+   * Submit a headshot generation request to muapi.ai and persist
+   * the creation record to Supabase.
    */
-  async generate(userId, { image_url, category, aspect_ratio = "1:1" }) {
+  async generate(anonymousId, { image_url, category, aspect_ratio = "1:1" }) {
+    if (!anonymousId) throw new Error("Missing anonymous id");
+    if (!image_url) throw new Error("image_url is required");
+    if (!category) throw new Error("category is required");
+
     const cost = this.getCreditCost();
-    await UserService.deductCredits(userId, cost);
+    await UserService.deductCredits(anonymousId, cost);
 
     const apiKey = config.ai.headshot.apiKey;
     if (!apiKey) throw new Error("HEADSHOT_API_KEY is not configured");
 
-    const webhookUrl = `${config.auth.webhook_url}/api/webhook/muapi`;
-    const submitUrl = `${config.ai.headshot.endpoint}?webhook=${encodeURIComponent(webhookUrl)}`;
-    
+    const webhookUrl = `${config.app.webhookUrl}/api/webhook/muapi`;
+    const submitUrl = `${config.ai.headshot.endpoint}?webhook_url=${encodeURIComponent(webhookUrl)}`;
+
     const submitRes = await fetch(submitUrl, {
       method: "POST",
       headers: {
@@ -41,57 +45,109 @@ export const AIService = {
 
     if (!submitRes.ok) {
       const errorText = await submitRes.text();
+      // Refund credits on failure
+      try { await UserService.addCredits(anonymousId, cost); } catch (_) {}
       throw new Error(`API Submission Failed: ${submitRes.status} ${errorText}`);
     }
 
-    const { request_id } = await submitRes.json();
-    if (!request_id) throw new Error("No request_id received from API");
-
-    const creationModel = prisma.creation || prisma.Creation;
-    if (creationModel) {
-      await creationModel.create({
-        data: {
-          userId,
-          category,
-          aspectRatio: aspect_ratio,
-          requestId: request_id,
-          status: "processing",
-          isPack: true,
-        }
-      });
+    const submitData = await submitRes.json();
+    const requestId = submitData.request_id || submitData.id;
+    if (!requestId) {
+      try { await UserService.addCredits(anonymousId, cost); } catch (_) {}
+      throw new Error("No request_id received from API");
     }
 
-    return { request_id };
+    const supabase = getServiceClient();
+    const { error: insertErr } = await supabase.from("creations").insert({
+      user_id: anonymousId,
+      category,
+      aspect_ratio,
+      request_id: requestId,
+      status: "processing",
+      is_pack: true,
+    });
+    if (insertErr) {
+      console.error("[AI_SERVICE] insert error", insertErr);
+    }
+
+    return { request_id: requestId };
   },
 
   /**
-   * Check the status of a specific generation (Polling fallback)
+   * Poll muapi.ai for the status of a generation request and update
+   * the corresponding Supabase record. Falls back to the DB if the
+   * upstream call fails so the UI can render whatever state exists.
    */
-  async checkStatus(requestId, userId, metadata) {
-    const creationModel = prisma.creation || prisma.Creation;
-    if (!creationModel) return { status: "processing" };
+  async checkStatus(requestId, anonymousId) {
+    if (!requestId) return { status: "processing" };
 
-    const creation = await creationModel.findUnique({
-      where: { requestId }
-    });
+    const apiKey = config.ai.headshot.apiKey;
+    const supabase = getServiceClient();
 
-    if (!creation) {
-      return { status: "processing" };
-    }
-
-    if (creation.status === "completed") {
+    let statusData = null;
+    if (apiKey) {
       try {
-        const urlData = JSON.parse(creation.imageUrl || "[]");
-        return { status: "completed", imageUrl: urlData };
+        const statusUrl = `${config.ai.headshot.resultEndpoint}/${requestId}/result`;
+        const statusRes = await fetch(statusUrl, { headers: { "x-api-key": apiKey } });
+        if (statusRes.ok) {
+          statusData = await statusRes.json();
+        }
       } catch (e) {
-        return { status: "completed", imageUrl: creation.imageUrl };
+        console.warn("[AI_SERVICE] upstream status failed", e.message);
       }
     }
 
-    if (creation.status === "failed") {
+    let creation = null;
+    if (anonymousId) {
+      const { data } = await supabase
+        .from("creations")
+        .select("*")
+        .eq("request_id", requestId)
+        .eq("user_id", anonymousId)
+        .maybeSingle();
+      creation = data;
+    } else {
+      const { data } = await supabase
+        .from("creations")
+        .select("*")
+        .eq("request_id", requestId)
+        .maybeSingle();
+      creation = data;
+    }
+
+    if (creation?.status === "completed") {
+      try {
+        const parsed = JSON.parse(creation.image_url || "[]");
+        return { status: "completed", imageUrl: Array.isArray(parsed) ? parsed : [creation.image_url] };
+      } catch (_) {
+        return { status: "completed", imageUrl: creation.image_url };
+      }
+    }
+    if (creation?.status === "failed") {
       throw new Error(creation.error || "Generation failed.");
     }
 
+    if (statusData) {
+      const status = (statusData.status || "").toLowerCase();
+      if (status === "completed" || status === "succeeded" || status === "success") {
+        const imageUrl = statusData.outputs?.[0] || statusData.url || statusData.output?.url;
+        if (imageUrl) {
+          await supabase
+            .from("creations")
+            .update({ status: "completed", image_url: imageUrl })
+            .eq("request_id", requestId);
+          return { status: "completed", imageUrl };
+        }
+      } else if (status === "failed" || status === "error") {
+        const errorMsg = statusData.error || "Generation failed";
+        await supabase
+          .from("creations")
+          .update({ status: "failed", error: errorMsg })
+          .eq("request_id", requestId);
+        throw new Error(errorMsg);
+      }
+    }
+
     return { status: "processing" };
-  }
+  },
 };

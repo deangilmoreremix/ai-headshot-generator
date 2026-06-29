@@ -1,8 +1,11 @@
-import Stripe from "stripe";
+// Stripe is not configured in this deployment. The pricing page
+// provides a no-cost credit-top-up option that adds credits directly.
+import { UserService } from "./services/user";
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16", // use latest stable
-  appInfo: {
-    name: "AI Headshot Studio",
+export const stripe = null;
+
+export const BillingServiceLocal = {
+  async topUp(anonymousId, credits) {
+    return await UserService.addCredits(anonymousId, credits);
   },
-});
+};

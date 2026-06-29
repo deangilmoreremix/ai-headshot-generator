@@ -1,38 +1,62 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaMagic,
   FaCalendarAlt,
   FaExpandAlt,
+  FaTrash,
 } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import { downloadImage } from "@/lib/utils";
 import { FiDownload } from "react-icons/fi";
+import { useAnonymousId } from "@/hooks/useAnonymousId";
+import { useCredits } from "@/hooks/useCredits";
+import { CreditBadge } from "@/components/saas/CreditBadge";
+import Link from "next/link";
 
 export default function CreationsPage() {
-   const router = useRouter();
+  const router = useRouter();
   const [creations, setCreations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
 
-  useEffect(() => {
-    fetchCreations();
-  }, []);
+  const anonymousId = useAnonymousId();
+  const { credits } = useCredits();
 
-  const fetchCreations = async () => {
-    try {
-      const res = await fetch("/api/creations");
-      const data = await res.json();
-      if (res.ok) {
-        setCreations(data);
+  useEffect(() => {
+    if (!anonymousId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/creations", {
+          headers: { "x-anonymous-id": anonymousId },
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (!cancelled && res.ok) setCreations(data);
+      } catch (error) {
+        console.error("Error fetching creations:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching creations:", error);
-    } finally {
-      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [anonymousId]);
+
+  const handleDelete = async (id) => {
+    if (!id) return;
+    if (!confirm("Delete this creation?")) return;
+    try {
+      await fetch(`/api/creations?id=${id}`, { method: "DELETE" });
+      setCreations((prev) => prev.filter((c) => c.id !== id));
+      if (selectedImage?.id === id) setSelectedImage(null);
+    } catch (e) {
+      console.error("Delete failed", e);
     }
   };
 
@@ -44,6 +68,9 @@ export default function CreationsPage() {
       return [url];
     }
   };
+
+  const itemImageUrl = (item) => item.image_url || item.imageUrl;
+  const itemCreatedAt = (item) => item.created_at || item.createdAt;
 
   if (loading) {
     return (
@@ -60,11 +87,14 @@ export default function CreationsPage() {
   return (
     <div className="flex-1 bg-transparent overflow-y-auto custom-scrollbar p-4 md:p-12">
       <header className="max-w-7xl mx-auto mb-10 space-y-3 pt-4 md:pt-0">
-        <div className="flex items-center gap-3 text-primary-500 mb-1">
-          <FaCalendarAlt className="text-sm" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.4em]">
-            Historical Archive
-          </span>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-3 text-primary-500">
+            <FaCalendarAlt className="text-sm" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.4em]">
+              Historical Archive
+            </span>
+          </div>
+          <CreditBadge credits={credits} />
         </div>
         <h1 className="text-3xl md:text-5xl font-semibold tracking-tight text-foreground">
           MY HEADSHOTS
@@ -96,7 +126,7 @@ export default function CreationsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <AnimatePresence>
               {creations.map((item, index) => {
-                const urls = parseImageUrl(item.imageUrl);
+                const urls = parseImageUrl(itemImageUrl(item));
                 const thumbnail = urls[0];
                 const isPack = urls.length > 1;
 
@@ -107,7 +137,7 @@ export default function CreationsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                     className="group relative rounded-xl bg-glass-bg backdrop-blur-3xl border border-glass-border aspect-square cursor-pointer overflow-hidden shadow-sm hover:shadow-md transition-shadow transition-all"
-                    onClick={() => setSelectedImage({ ...item, urls })}
+                    onClick={() => setSelectedImage({ ...item, urls, imageUrl: itemImageUrl(item), createdAt: itemCreatedAt(item) })}
                   >
                     {item.status === "completed" ? (
                       <div className="w-full h-full relative">
@@ -244,7 +274,7 @@ export default function CreationsPage() {
                     <div className="space-y-1.5">
                       <div className="text-[9px] font-semibold text-muted uppercase tracking-widest">Timestamp</div>
                       <div className="text-[11px] text-muted">
-                        {new Date(selectedImage.createdAt).toLocaleString('en-US', { 
+                        {new Date(itemCreatedAt(selectedImage)).toLocaleString('en-US', { 
                           month: 'long', 
                           day: 'numeric',
                           year: 'numeric',
@@ -281,13 +311,22 @@ export default function CreationsPage() {
                 </div>
               </div>
 
-              {/* Close Button */}
-              <button
-                onClick={() => setSelectedImage(null)}
-                className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center text-muted hover:text-white transition-colors"
-              >
-                <span className="text-xl">✕</span>
-              </button>
+              {/* Delete + Close buttons */}
+              <div className="absolute top-6 right-6 flex items-center gap-2">
+                <button
+                  onClick={() => handleDelete(selectedImage.id)}
+                  className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-500 transition-colors"
+                  title="Delete creation"
+                >
+                  <FaTrash className="text-sm" />
+                </button>
+                <button
+                  onClick={() => setSelectedImage(null)}
+                  className="w-8 h-8 flex items-center justify-center text-muted hover:text-white transition-colors"
+                >
+                  <span className="text-xl">✕</span>
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

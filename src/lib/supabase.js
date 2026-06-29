@@ -24,4 +24,5 @@ export const getServiceClient = () => {
 };
 
 // Default export for convenience
-export default { supabase, getServiceClient };
+const supabaseModule = { supabase, getServiceClient };
+export default supabaseModule;

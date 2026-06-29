@@ -1,90 +1,91 @@
 # 🚀 AI Headshot Generator — Professional Portrait Studio
 
-> **A beautifully designed, fully-integrated AI headshot studio.** Built with Next.js, this open-source template serves as a complete, self-contained SaaS boilerplate for generating high-quality professional portraits and business headshots for LinkedIn, teams, and personal branding.
-
-## 🌐 Live Manifestation
-
-**[Experience the full glassmorphic, responsive interface here](https://ai-headshot-generator-xi.vercel.app/)**. Sign in with Google to explore the Portrait Studio, My Headshots archive, and Booking Tiers directly from your browser.
-
----
-
-**AI Headshot Generator** is not just another wrapper — it's a production-ready, highly-optimized AI web application. Out of the box, it seamlessly manages User Authentication, Credits & Billing, Image Persistence, and asynchronous AI generation polling using a sleek Next.js (App Router) architecture. It empowers you to build professional-grade AI portrait workflows with built-in mobile optimization, making it the perfect starting point for your next AI SaaS.
-
-**Why use AI Headshot Generator?**
-
-- **Production-Ready SaaS** — Complete with Google OAuth and Stripe Checkout workflows built-in.
-- **Dedicated Portrait Studio** — Specifically tailored UI for multi-image reference generation and professional style selection.
-- **Historical Archive** — All creations are securely persisted to a PostgreSQL database for a customized user gallery.
-- **Premium Glassmorphic UX** — Dynamic multi-theme support (Indigo, Emerald, Rose, Amber) with high-fidelity micro-animations.
-- **Extensible Architecture** — Easily swap out the underlying AI model while maintaining the premium application UI.
-
-![AI Headshot Generator](https://cdn.muapi.ai/outputs/d9c39378f60e48098f6b6ce657dc18b5.png)
+> **A beautifully designed, fully-integrated AI headshot studio.** Built with Next.js + Supabase + muapi.ai, this open-source template is a complete, self-contained SaaS boilerplate for generating high-quality professional portraits and business headshots for LinkedIn, teams, and personal branding — **no login or authentication required**.
 
 ## ✨ Core Features
 
-- **Kinetic Portrait Studio** — Generate stunning professional headshots with text prompts. Includes options for advanced `Aspect Ratio` tuning and tiered Resolutions (1K, 2K, 4K) tied directly to a flexible credit cost system.
-- **Multi-Image Reference Mode** — Transition smoothly to professional editing. Upload local images or add external URLs to use as visual nodes for complex portrait configurations.
-- **Secure My Headshots Archive** — A dedicated history vault for logged-in users. Displays past portrait sessions securely fetched from the database, viewable in a detailed inspector modal with 1-click downloads.
-- **Booking Tiers & Billing** — Complete Stripe integration. Start users off with a balance, map generations to credit deductions, and seamlessly route them to an interactive pricing page to book sessions (Starter, Professional, Executive).
-- **Beautiful & Dynamic UI** — Built on Tailwind CSS and Framer Motion, ensuring every state transition, loading spinner, and dropdown elegantly guides the user.
+- **Kinetic Portrait Studio** — Generate stunning professional headshots with text prompts. Tiered resolutions (1K, 2K, 4K) and `Aspect Ratio` tuning tied directly to a flexible credit cost system.
+- **Multi-Image Reference Mode** — Upload local images or add external URLs to use as visual nodes for complex portrait configurations.
+- **Secure My Headshots Archive** — A dedicated history vault. Displays past portrait sessions fetched from Supabase, viewable in a detailed inspector modal with 1-click downloads and deletion.
+- **Credit Tiers** — Three credit top-up tiers (Starter, Professional, Executive). All generations cost **60 credits** per pack.
+- **Beautiful & Dynamic UI** — Tailwind CSS + Framer Motion glassmorphic interface with multi-theme support (Indigo, Emerald, Rose, Amber, Violet, Light, Dark).
+- **No authentication** — Every user gets a free `60` credit starter balance identified by a random `anonymous_id` stored in `localStorage`.
 
----
+## 🛠 Stack
 
-## ⚡ Deployment: Vercel & Production
+- **Frontend** — Next.js 16 (App Router) + React 19 + Tailwind 4 + Framer Motion
+- **Database** — Supabase Postgres (tables: `profiles`, `creations`, `uploads`)
+- **AI Generation** — [muapi.ai](https://muapi.ai) `photo-pack` model (submit → poll → webhook)
+- **Auth** — None. Anonymous, browser-side only.
 
-Deploying an instance of AI Headshot Generator to the web requires minimal configuration. The architecture is engineered explicitly for **Vercel** serverless environments.
-
-### 🔑 Required Environment Variables
-
-To successfully deploy and run, you must populate the following environment variables in your Vercel project settings:
-
-| Service               | Variable                             | Description & Source                                                                         |
-| :-------------------- | :----------------------------------- | :------------------------------------------------------------------------------------------- |
-| **Database**          | `DATABASE_URL`                       | PostgreSQL connection string ([Supabase](https://supabase.com) or [Neon](https://neon.tech)) |
-|                       | `DIRECT_URL`                         | Direct DB connection for Prisma migrations                                                   |
-| **NextAuth / Google** | `NEXTAUTH_SECRET`                    | Secure random string generated via `openssl rand -base64 32`                                 |
-|                       | `NEXTAUTH_URL`                       | Your production domain (e.g. `https://my-app.vercel.app`)                                    |
-|                       | `GOOGLE_CLIENT_ID`                   | Get from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)           |
-|                       | `GOOGLE_CLIENT_SECRET`               | Get from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)           |
-| **Stripe Billing**    | `STRIPE_SECRET_KEY`                  | Get from [Stripe Dashboard](https://dashboard.stripe.com/apikeys)                            |
-|                       | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Get from [Stripe Dashboard](https://dashboard.stripe.com/apikeys)                            |
-|                       | `STRIPE_WEBHOOK_SECRET`              | Webhook secret for resolving credit purchases                                                |
-| **AI Generator**      | `HEADSHOT_API_KEY`                   | Create an account and get your API key for your targeted headshot model.                     |
-
----
-
-## 🛠️ Local Development
-
-Ready to iterate locally? Setup is straightforward.
+## ⚡ Local Development
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/en/) (v18 or higher)
-- A local PostgreSQL instance or a free cloud Database URL.
+- Node.js v18+
+- A Supabase project (free tier works)
+- A muapi.ai API key
 
 ### Setup
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/SamurAIGPT/ai-headshot-generator
-cd ai-headshot-generator
-
-# 2. Install dependencies
+# 1. Install dependencies
 npm install
 
-# 3. Setup Environment
+# 2. Configure environment
 cp .env.example .env
-# Open .env and insert your specific keys.
+# Fill in NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+# SUPABASE_SERVICE_ROLE_KEY, and HEADSHOT_API_KEY (muapi.ai)
 
-# 4. Initialize Database Schema
-npx prisma generate
-npx prisma db push
+# 3. Create database tables
+#    Apply the schema in supabase/schema.sql to your Supabase project
+#    (SQL editor in the Supabase dashboard)
 
-# 5. Start the Development Server
+# 4. Start the dev server
 npm run dev
 ```
 
-The graphical console should now be heavily responsive on `http://localhost:3000`.
+Open `http://localhost:3000`.
+
+### Database Schema
+
+The app uses three tables in the `public` schema. See [`supabase/schema.sql`](./supabase/schema.sql):
+
+- **`profiles`** — anonymous user balances (`anonymous_id`, `credits`)
+- **`creations`** — every headshot generation request (`request_id`, `status`, `image_url`, `category`, `aspect_ratio`, `is_pack`)
+- **`uploads`** — log of uploaded reference images
+
+All tables have RLS enabled with permissive public policies (the app uses the service role key on the server).
+
+### Environment Variables
+
+| Variable                       | Description                                       |
+| :----------------------------- | :------------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`     | Supabase project URL                              |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`| Supabase anon key (client-side)                   |
+| `SUPABASE_SERVICE_ROLE_KEY`    | Supabase service role key (server-side only)      |
+| `HEADSHOT_API_KEY`             | muapi.ai API key                                  |
+| `WEBHOOK_URL`                  | Public URL where muapi.ai will post webhooks      |
+| `NEXT_PUBLIC_APP_URL`          | Public URL of the deployed app                    |
+| `NEXT_PUBLIC_THEME`            | `indigo`, `emerald`, `rose`, `amber`, `violet`, `light`, or `dark` |
+
+## 🧠 How It Works
+
+1. The browser generates a random UUID and stores it in `localStorage` as the anonymous user id.
+2. On the first request, a `profiles` row is created in Supabase with **60** free credits.
+3. Selecting a reference image, category, and aspect ratio, the user clicks **Generate Headshots**.
+4. The server deducts 60 credits, submits the job to muapi.ai `photo-pack` (with a webhook URL pointing at `/api/webhook/muapi`), and inserts a `processing` row into `creations`.
+5. The browser polls `/api/headshot/status` every 3 seconds. When the job completes, muapi also calls our webhook which writes the final image URL(s) to the `creations` row. The browser picks this up on its next poll.
+6. The result renders inline with a "Download Pack" button for batch downloads.
+7. All creations are listed in **/creations** with thumbnails, status, and a detail modal for individual download or deletion.
+
+## 🚀 Deploying to Vercel
+
+1. Push the repo to GitHub.
+2. Import into Vercel.
+3. Add all environment variables from `.env.example` to your Vercel project.
+4. Update `WEBHOOK_URL` to your production URL so muapi.ai can reach your webhook.
+5. Deploy.
 
 ---
 

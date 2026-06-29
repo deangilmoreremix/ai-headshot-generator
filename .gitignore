@@ -38,6 +38,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma
-/prisma/migrations
-/node_modules/.prisma
+# supabase
+/supabase/.branches
+/supabase/.temp

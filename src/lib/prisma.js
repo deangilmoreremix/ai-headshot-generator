@@ -1,10 +1,8 @@
-// Re-export Supabase client as 'prisma' for backward compatibility
-// This allows gradual migration without breaking existing imports
-import { supabase as supabaseClient, getServiceClient } from "./supabase";
+// Backwards-compatible export.
+// Most code uses getServiceClient() directly from "./supabase".
+// This module re-exports the same clients for legacy import paths.
+import { getServiceClient, supabase as supabaseClient } from "./supabase";
 
 export const prisma = getServiceClient();
-
-export const getClient = () => prisma;
-
-// Also export supabase-specific clients for new code
+export const getClient = () => getServiceClient();
 export { supabaseClient, getServiceClient };

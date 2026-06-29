@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
-import config from '@/lib/config';
-import { getServiceClient } from '@/lib/supabase';
+import { NextResponse } from "next/server";
+import { AIService } from "@/lib/services/ai";
+
+export const runtime = "nodejs";
 
 export async function POST(req) {
   try {
@@ -8,54 +9,26 @@ export async function POST(req) {
     const { image_url, category, aspect_ratio } = body;
 
     if (!image_url) {
-      return NextResponse.json({ error: 'Reference image is required' }, { status: 400 });
+      return NextResponse.json({ error: "Reference image is required" }, { status: 400 });
     }
     if (!category) {
-      return NextResponse.json({ error: 'Category is required' }, { status: 400 });
+      return NextResponse.json({ error: "Category is required" }, { status: 400 });
     }
 
-    const apiKey = config.ai.headshot.apiKey;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'AI API key is not configured' }, { status: 500 });
-    }
+    // Get the anonymous id from the request header. If missing, we still
+    // proceed but credit accounting will fail with a clear error.
+    const anonymousId = req.headers.get("x-anonymous-id");
 
-    const submitRes = await fetch(config.ai.headshot.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        image_url,
-        category,
-        aspect_ratio: aspect_ratio || '1:1',
-      }),
-    });
-
-    if (!submitRes.ok) {
-      const errorText = await submitRes.text();
-      throw new Error(`AI API request failed: ${submitRes.status} ${errorText}`);
-    }
-
-    const submitData = await submitRes.json();
-    const requestId = submitData.request_id || submitData.id;
-
-    if (!requestId) {
-      throw new Error('No request ID received from AI API');
-    }
-
-    const supabase = getServiceClient();
-    await supabase.from('creations').insert({
-      tenant_id: 'default',
+    const result = await AIService.generate(anonymousId, {
+      image_url,
       category,
-      aspect_ratio: aspect_ratio || '1:1',
-      request_id: requestId,
-      status: 'processing',
+      aspect_ratio: aspect_ratio || "1:1",
     });
 
-    return NextResponse.json({ request_id: requestId });
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('[HEADSHOT_API_ERROR]', error);
-    return NextResponse.json({ error: error.message || 'Internal Error' }, { status: 500 });
+    console.error("[HEADSHOT_API_ERROR]", error);
+    const status = error.message?.includes("Insufficient credits") ? 402 : 500;
+    return NextResponse.json({ error: error.message || "Internal Error" }, { status });
   }
 }
