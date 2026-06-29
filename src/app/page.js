@@ -14,10 +14,6 @@ import { FiDownload } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadImage, headshotsExamples } from '@/lib/utils';
 import { useAnonymousId } from '@/hooks/useAnonymousId';
-import { useCredits } from '@/hooks/useCredits';
-import { CreditBadge } from '@/components/saas/CreditBadge';
-import Link from 'next/link';
-import { FaCoins } from 'react-icons/fa';
 
 const ASPECT_RATIOS = [
   { label: '1:1 Square', value: '1:1' },
@@ -128,8 +124,6 @@ export default function Home() {
   const [error, setError] = useState(null);
 
   const anonymousId = useAnonymousId();
-  const { credits, refresh: refreshCredits } = useCredits();
-  const CREDIT_COST = 60;
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -217,7 +211,6 @@ export default function Home() {
       }
 
       const { request_id } = data;
-      refreshCredits();
       await pollStatus(request_id);
       refreshCredits();
     } catch (err) {
@@ -265,12 +258,6 @@ export default function Home() {
           <div className="flex flex-col gap-2">
             <h2 className="text-lg font-black tracking-tight text-foreground drop-shadow-sm">PORTRAIT STUDIO</h2>
             <p className="text-[10px] text-muted font-medium uppercase tracking-[0.2em]">Professional AI Engine</p>
-          </div>
-          <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-glass-bg border border-glass-border">
-            <CreditBadge credits={credits} />
-            <Link href="/pricing" className="text-[10px] font-black uppercase tracking-widest text-primary-500 hover:text-primary-600 transition-colors">
-              Top-up
-            </Link>
           </div>
         </div>
 
@@ -426,7 +413,7 @@ export default function Home() {
         <div className="p-6 border-t border-glass-border mt-auto">
           <button
             onClick={handleGenerate}
-            disabled={loading || (!referenceImage && !newImageUrl) || credits < CREDIT_COST}
+            disabled={loading || (!referenceImage && !newImageUrl)}
             className="w-full bg-gradient-to-r from-primary-600 to-primary-500 text-white rounded-xl py-4 font-bold tracking-wider uppercase text-xs flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 shadow-xl shadow-primary-500/30 border border-primary-400/50"
           >
             {loading ? (
@@ -434,16 +421,8 @@ export default function Home() {
             ) : (
               <FaBolt className="text-yellow-400" />
             )}
-            {loading ? 'PROCESSING...' : `Generate Headshots (${CREDIT_COST} credits)`}
+            {loading ? 'PROCESSING...' : 'Generate Headshots'}
           </button>
-          {credits < CREDIT_COST && (
-            <Link
-              href="/pricing"
-              className="mt-3 block text-center text-[10px] font-black uppercase tracking-widest text-primary-500 hover:text-primary-600"
-            >
-              Not enough credits — Top-up →
-            </Link>
-          )}
         </div>
       </aside>
 

@@ -1,40 +1,32 @@
 import { getServiceClient } from "@/lib/supabase";
 
-/**
- * Service to manage anonymous users and credits in Supabase.
- * There is NO authentication — users are identified by a random
- * anonymous_id stored in the browser's localStorage.
- */
-
 const ANON_KEY = "ahs_anon_id";
 
-export function getAnonymousId(req) {
-  if (typeof window !== "undefined") {
-    let id = window.localStorage.getItem(ANON_KEY);
-    if (!id) {
-      id = crypto.randomUUID();
-      window.localStorage.setItem(ANON_KEY, id);
-    }
-    return id;
+export function getAnonymousId() {
+  if (typeof window === "undefined") return null;
+  let id = window.localStorage.getItem(ANON_KEY);
+  if (!id) {
+    id =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    window.localStorage.setItem(ANON_KEY, id);
   }
-  // Server-side: caller must pass anonymous id explicitly.
-  return null;
+  return id;
 }
 
-async function ensureUser(supabase, anonymousId) {
-  // Try to fetch existing
-  const { data: existing } = await supabase
+async function ensureProfile(supabase, anonymousId) {
+  const { data } = await supabase
     .from("profiles")
-    .select("id, credits, anonymous_id")
+    .select("*")
     .eq("anonymous_id", anonymousId)
     .maybeSingle();
 
-  if (existing) return existing;
+  if (data) return data;
 
-  // Create new
   const { data: created, error } = await supabase
     .from("profiles")
-    .insert({ anonymous_id: anonymousId, credits: 60 })
+    .insert({ anonymous_id: anonymousId })
     .select()
     .single();
 
@@ -42,69 +34,35 @@ async function ensureUser(supabase, anonymousId) {
   return created;
 }
 
-export const UserService = {
-  /**
-   * Get the credits for an anonymous user. Auto-creates the user if missing.
-   */
-  async getCredits(anonymousId) {
-    if (!anonymousId) return 0;
-    const supabase = getServiceClient();
-    const user = await ensureUser(supabase, anonymousId);
-    return user.credits || 0;
-  },
+export async function getProfile(anonymousId) {
+  if (!anonymousId) return null;
+  const supabase = getServiceClient();
+  return await ensureProfile(supabase, anonymousId);
+}
 
-  /**
-   * Add credits to an anonymous user.
-   */
-  async addCredits(anonymousId, amount) {
-    if (!anonymousId || !amount) return null;
-    const supabase = getServiceClient();
-    await ensureUser(supabase, anonymousId);
-    const { data, error } = await supabase.rpc("increment_user_credits", {
-      anon_id: anonymousId,
-      delta: amount,
-    });
-    if (error) {
-      // Fallback to read-then-write if RPC is missing
-      const user = await ensureUser(supabase, anonymousId);
-      const { data: updated, error: e2 } = await supabase
-        .from("profiles")
-        .update({ credits: (user.credits || 0) + amount })
-        .eq("anonymous_id", anonymousId)
-        .select()
-        .single();
-      if (e2) throw e2;
-      return updated;
-    }
-    return data;
-  },
+export async function setMuApiKey(anonymousId, muapiKey) {
+  if (!anonymousId) return null;
+  const supabase = getServiceClient();
+  await ensureProfile(supabase, anonymousId);
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ muapi_key: muapiKey })
+    .eq("anonymous_id", anonymousId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
 
-  /**
-   * Deduct credits from an anonymous user. Throws on insufficient balance.
-   */
-  async deductCredits(anonymousId, amount = 1) {
-    if (!anonymousId) throw new Error("Missing anonymous id");
-    const supabase = getServiceClient();
-    const user = await ensureUser(supabase, anonymousId);
-    if ((user.credits || 0) < amount) {
-      throw new Error("Insufficient credits");
-    }
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({ credits: (user.credits || 0) - amount })
-      .eq("anonymous_id", anonymousId)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  },
+export async function getMuApiKey(anonymousId) {
+  if (!anonymousId) return null;
+  const supabase = getServiceClient();
+  const profile = await getProfile(anonymousId);
+  return profile?.muapi_key || null;
+}
 
-  /**
-   * Return the user's current state, creating one if missing.
-   */
-  async getOrCreate(anonymousId) {
-    if (!anonymousId) return null;
-    const supabase = getServiceClient();
-    return await ensureUser(supabase, anonymousId);
-  },
-};
+export async function deleteProfile(anonymousId) {
+  if (!anonymousId) return;
+  const supabase = getServiceClient();
+  await supabase.from("profiles").delete().eq("anonymous_id", anonymousId);
+}

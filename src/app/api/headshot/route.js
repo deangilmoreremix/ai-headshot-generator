@@ -15,10 +15,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Category is required" }, { status: 400 });
     }
 
-    // Get the anonymous id from the request header. If missing, we still
-    // proceed but credit accounting will fail with a clear error.
     const anonymousId = req.headers.get("x-anonymous-id");
-
     const result = await AIService.generate(anonymousId, {
       image_url,
       category,
@@ -28,7 +25,6 @@ export async function POST(req) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("[HEADSHOT_API_ERROR]", error);
-    const status = error.message?.includes("Insufficient credits") ? 402 : 500;
-    return NextResponse.json({ error: error.message || "Internal Error" }, { status });
+    return NextResponse.json({ error: error.message || "Internal Error" }, { status: 500 });
   }
 }

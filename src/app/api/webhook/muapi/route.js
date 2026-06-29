@@ -3,8 +3,6 @@ import { getServiceClient } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
-// muapi.ai webhook handler. Accepts payloads of either shape:
-//   { id, status, outputs: [...] } or { request_id, status, outputs: [...] }
 export async function POST(req) {
   const supabase = getServiceClient();
   try {
@@ -35,28 +33,6 @@ export async function POST(req) {
         .from("creations")
         .update({ status: "failed", error: errorMsg })
         .eq("id", creation.id);
-
-      // Refund credits if the user has any.
-      if (creation.user_id) {
-        try {
-          await supabase.rpc("increment_user_credits", {
-            anon_id: creation.user_id,
-            delta: 60,
-          });
-        } catch (_) {
-          const { data: u } = await supabase
-            .from("profiles")
-            .select("credits")
-            .eq("anonymous_id", creation.user_id)
-            .maybeSingle();
-          if (u) {
-            await supabase
-              .from("profiles")
-              .update({ credits: (u.credits || 0) + 60 })
-              .eq("anonymous_id", creation.user_id);
-          }
-        }
-      }
     } else if (status === "completed" || status === "succeeded" || status === "success") {
       const outputs = data.outputs || data.output || [];
       const urls = Array.isArray(outputs) ? outputs : [outputs];
@@ -70,7 +46,6 @@ export async function POST(req) {
         })
         .eq("id", creation.id);
     } else {
-      // Keep status as processing but refresh updated_at
       await supabase
         .from("creations")
         .update({ status: "processing" })

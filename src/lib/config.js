@@ -1,6 +1,6 @@
 /**
  * Centralized configuration.
- * No authentication required. Stripe / OAuth are not used.
+ * No authentication. Credits/billing removed.
  */
 
 const config = {
@@ -23,10 +23,6 @@ const config = {
       uploadEndpoint: "https://api.muapi.ai/api/v1/upload",
       resultEndpoint: "https://api.muapi.ai/api/v1/predictions",
     },
-  },
-  credits: {
-    headshotCost: 60,
-    startingCredits: 60,
   },
 };
 

@@ -1,11 +1,9 @@
-// Stripe is not configured in this deployment. The pricing page
-// provides a no-cost credit-top-up option that adds credits directly.
-import { UserService } from "./services/user";
-
+// Stripe / billing is completely removed in this version.
+// The pricing -> settings flow handles credit top-ups via the user's own muapi.ai key.
 export const stripe = null;
 
 export const BillingServiceLocal = {
-  async topUp(anonymousId, credits) {
-    return await UserService.addCredits(anonymousId, credits);
+  async topUp() {
+    throw new Error("Billing is removed");
   },
 };

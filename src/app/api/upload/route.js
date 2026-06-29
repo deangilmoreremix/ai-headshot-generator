@@ -13,15 +13,27 @@ export async function POST(req) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Optional URL input (passthrough)
+    // Passthrough URL input (optional)
     const url = formData.get("url");
     if (url && typeof url === "string" && url.length > 0) {
       return NextResponse.json({ url });
     }
 
-    const apiKey = config.ai.headshot.apiKey;
+    // Try per-user key first (from header -> profiles), then env fallback
+    const anonymousId = req.headers.get("x-anonymous-id");
+    let apiKey = config.ai.headshot.apiKey;
+    if (anonymousId) {
+      const supabase = getServiceClient();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("muapi_key")
+        .eq("anonymous_id", anonymousId)
+        .maybeSingle();
+      if (profile?.muapi_key) apiKey = profile.muapi_key;
+    }
+
     if (!apiKey) {
-      return NextResponse.json({ error: "API key not configured" }, { status: 500 });
+      return NextResponse.json({ error: "No muapi.ai API key configured" }, { status: 500 });
     }
 
     const muapiForm = new FormData();
@@ -44,16 +56,12 @@ export async function POST(req) {
       throw new Error("Upload succeeded but no URL returned");
     }
 
-    // Log the upload in Supabase (best effort)
     try {
-      const supabase = getServiceClient();
-      await supabase.from("uploads").insert({
+      await getServiceClient().from("uploads").insert({
         file_url: fileUrl,
         metadata: { size: file.size, type: file.type },
       });
-    } catch (e) {
-      console.warn("[UPLOAD_LOG] could not log to supabase", e.message);
-    }
+    } catch (_) { /* non-fatal */ }
 
     return NextResponse.json({ url: fileUrl });
   } catch (error) {

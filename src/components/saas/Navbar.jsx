@@ -6,18 +6,15 @@ import { FaRocket, FaBars, FaTimes } from "react-icons/fa";
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useCredits } from "@/hooks/useCredits";
-import { CreditBadge } from "@/components/saas/CreditBadge";
 
 export function Navbar() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { credits } = useCredits();
 
   const navLinks = [
     { name: "AI Headshot", href: "/" },
     { name: "My Creations", href: "/creations" },
-    { name: "Pricing", href: "/pricing" },
+    { name: "Settings", href: "/settings" },
   ];
 
   return (
@@ -59,12 +56,8 @@ export function Navbar() {
         })}
       </div>
 
-      {/* Right side: credits + deploy */}
+      {/* Right side: mobile menu toggle */}
       <div className="flex items-center gap-4">
-        <div className="hidden md:block">
-          <CreditBadge credits={credits} />
-        </div>
-
         {/* Mobile menu toggle */}
         <button
           className="md:hidden ml-2 p-2 text-muted hover:text-foreground transition-colors"
