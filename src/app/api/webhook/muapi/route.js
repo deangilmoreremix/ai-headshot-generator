@@ -8,60 +8,79 @@ export async function POST(req) {
     const requestId = data.id;
 
     if (!requestId) {
-      console.error("[MUAPI_WEBHOOK_ERROR] Missing request id in payload", data);
       return NextResponse.json({ error: "Missing request id" }, { status: 400 });
     }
 
     const { data: creation, error: fetchError } = await supabase
-      .from('creations')
+      .from("creations")
       .select()
-      .eq('request_id', requestId)
+      .eq("request_id", requestId)
       .single();
 
     if (fetchError) {
-      // Check if it's a "not found" error
-      if (fetchError.code !== 'PGRST116') {
+      if (fetchError.code !== "PGRST116") {
         console.error("[MUAPI_WEBHOOK_ERROR]", fetchError);
       }
-      console.warn(`[MUAPI_WEBHOOK] Creation with requestId ${requestId} not found.`);
       return NextResponse.json({ error: "Creation not found" }, { status: 404 });
     }
 
     if (!creation) {
-      console.warn(`[MUAPI_WEBHOOK] Creation with requestId ${requestId} not found.`);
       return NextResponse.json({ error: "Creation not found" }, { status: 404 });
     }
 
     if (data.error && data.error !== "") {
-      const { error: updateError } = await supabase
-        .from('creations')
-        .update({
-          status: "failed",
-          error: data.error
-        })
-        .eq('id', creation.id);
-      
-      if (updateError) console.error("[MUAPI_WEBHOOK_ERROR]", updateError);
-      // Credits refund logic could go here if implemented
-    } else {
-      const outputs = data.outputs || [];
-      const imageUrl = JSON.stringify(outputs);
-
-      const { error: updateError } = await supabase
-        .from('creations')
-        .update({
-          status: "completed",
-          image_url: imageUrl,
-          video_url: creation.type === 'video' ? imageUrl : null,
-          is_pack: true,
-        })
-        .eq('id', creation.id);
-      
-      if (updateError) console.error("[MUAPI_WEBHOOK_ERROR]", updateError);
+      await supabase
+        .from("creations")
+        .update({ status: "failed", error: data.error })
+        .eq("id", creation.id);
+      return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json({ success: true });
+    const outputs = data.outputs || [];
+    const storedUrls = [];
 
+    for (const url of outputs) {
+      try {
+        const imageRes = await fetch(url);
+        if (!imageRes.ok) throw new Error(`Failed to fetch image: ${imageRes.status}`);
+
+        const blob = await imageRes.blob();
+        const ext = url.split(".").pop()?.split("?")[0] || "jpg";
+        const path = `${crypto.randomUUID()}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("uploads")
+          .upload(path, blob, {
+            contentType: blob.type || `image/${ext}`,
+            upsert: true,
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicData } = supabase.storage
+          .from("uploads")
+          .getPublicUrl(path);
+
+        storedUrls.push(publicData.publicUrl);
+      } catch (err) {
+        console.error("[MUAPI_WEBHOOK_IMAGE_UPLOAD_ERROR]", err);
+        storedUrls.push(url);
+      }
+    }
+
+    const imageUrl = JSON.stringify(storedUrls);
+
+    await supabase
+      .from("creations")
+      .update({
+        status: "completed",
+        image_url: imageUrl,
+        video_url: creation.type === "video" ? imageUrl : null,
+        is_pack: true,
+      })
+      .eq("id", creation.id);
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[MUAPI_WEBHOOK_ERROR]", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
