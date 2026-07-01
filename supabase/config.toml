@@ -1,0 +1,27 @@
+project_id = "YOUR_PROJECT_ID"
+name = "AI Headshot Studio"
+region = "us-east-1"
+
+[api]
+enabled = true
+port = 54321
+
+[auth]
+enabled = true
+
+[db]
+enabled = true
+port = 54322
+
+[storage]
+enabled = true
+port = 54321
+file_operations = true
+
+[edge_functions]
+enabled = true
+port = 54321
+
+[realtime]
+enabled = true
+port = 54321
