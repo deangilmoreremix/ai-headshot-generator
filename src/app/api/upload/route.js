@@ -1,40 +1,26 @@
 import { NextResponse } from "next/server";
-import config from "@/lib/config";
+import { getServiceClient } from "@/lib/supabase";
 
 export async function POST(req) {
   try {
-    // No auth required - public upload endpoint
     const formData = await req.formData();
     const file = formData.get("file");
+    if (!file) return new NextResponse("No file provided", { status: 400 });
 
-    if (!file) {
-      return new NextResponse("No file provided", { status: 400 });
-    }
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${crypto.randomUUID()}.${ext}`;
 
-    const apiKey = config.ai.headshot.apiKey;
-    if (!apiKey) {
-      return new NextResponse("API Key not configured", { status: 500 });
-    }
-
-    // Prepare for MuAPI
-    const muapiFormData = new FormData();
-    muapiFormData.append("file", file);
-
-    const response = await fetch(config.ai.headshot.uploadEndpoint, {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-      },
-      body: muapiFormData,
+    const supabase = getServiceClient();
+    const { data, error } = await supabase.storage.from("uploads").upload(path, file, {
+      contentType: file.type,
+      upsert: true,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`MuAPI Upload Failed: ${response.status} ${errorText}`);
-    }
+    if (error) throw error;
 
-    const data = await response.json();
-    return NextResponse.json(data);
+    const { data: { publicUrl } } = supabase.storage.from("uploads").getPublicUrl(path);
+
+    return NextResponse.json({ url: publicUrl });
   } catch (error) {
     console.error("[UPLOAD_ERROR]", error);
     return new NextResponse(error.message || "Internal Error", { status: 500 });

@@ -52,6 +52,7 @@ export async function POST(req) {
         .update({
           status: "completed",
           image_url: imageUrl,
+          video_url: creation.type === 'video' ? imageUrl : null,
           is_pack: true,
         })
         .eq('id', creation.id);

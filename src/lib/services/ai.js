@@ -1,97 +1,54 @@
-import { prisma } from "@/lib/prisma";
-import { UserService } from "./user";
+import { getServiceClient } from "@/lib/supabase";
 import config from "@/lib/config";
 
-/**
- * Service to manage AI Headshot Studio generations using muapi.ai
- */
 export const AIService = {
-  /**
-   * Defines the fixed cost for a professional photo pack
-   */
   getCreditCost() {
-    return 60;
+    return 0;
   },
 
-  /**
-   * Execute a headshot generation quest using muapi.ai photo-pack
-   */
-  async generate(userId, { image_url, category, aspect_ratio = "1:1" }) {
-    const cost = this.getCreditCost();
-    await UserService.deductCredits(userId, cost);
+  async generate(sessionId, { image_url, category, aspect_ratio = "1:1", type = "image" }) {
+    const supabase = getServiceClient();
 
-    const apiKey = config.ai.headshot.apiKey;
-    if (!apiKey) throw new Error("HEADSHOT_API_KEY is not configured");
-
-    const webhookUrl = `${config.auth.webhook_url}/api/webhook/muapi`;
-    const submitUrl = `${config.ai.headshot.endpoint}?webhook=${encodeURIComponent(webhookUrl)}`;
-    
-    const submitRes = await fetch(submitUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        image_url,
-        category,
-        aspect_ratio,
-      }),
+    const { data, error } = await supabase.functions.invoke("generate-headshot", {
+      body: { image_url, category, aspect_ratio, type, session_id: sessionId },
     });
 
-    if (!submitRes.ok) {
-      const errorText = await submitRes.text();
-      throw new Error(`API Submission Failed: ${submitRes.status} ${errorText}`);
+    if (error) {
+      const message = error.message || "Edge function invocation failed";
+      throw new Error(message);
     }
 
-    const { request_id } = await submitRes.json();
-    if (!request_id) throw new Error("No request_id received from API");
-
-    const creationModel = prisma.creation || prisma.Creation;
-    if (creationModel) {
-      await creationModel.create({
-        data: {
-          userId,
-          category,
-          aspectRatio: aspect_ratio,
-          requestId: request_id,
-          status: "processing",
-          isPack: true,
-        }
-      });
+    if (data?.error) {
+      throw new Error(data.error);
     }
 
-    return { request_id };
+    return { request_id: data.request_id };
   },
 
-  /**
-   * Check the status of a specific generation (Polling fallback)
-   */
-  async checkStatus(requestId, userId, metadata) {
-    const creationModel = prisma.creation || prisma.Creation;
-    if (!creationModel) return { status: "processing" };
+  async checkStatus(requestId) {
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+      .from("creations")
+      .select("*")
+      .eq("request_id", requestId)
+      .maybeSingle();
 
-    const creation = await creationModel.findUnique({
-      where: { requestId }
-    });
+    if (error) throw error;
 
-    if (!creation) {
-      return { status: "processing" };
-    }
+    if (!data) return { status: "processing" };
 
-    if (creation.status === "completed") {
+    if (data.status === "completed") {
+      let imageUrl = data.image_url;
       try {
-        const urlData = JSON.parse(creation.imageUrl || "[]");
-        return { status: "completed", imageUrl: urlData };
-      } catch (e) {
-        return { status: "completed", imageUrl: creation.imageUrl };
-      }
+        imageUrl = JSON.parse(imageUrl);
+      } catch (e) {}
+      return { status: "completed", imageUrl };
     }
 
-    if (creation.status === "failed") {
-      throw new Error(creation.error || "Generation failed.");
+    if (data.status === "failed") {
+      throw new Error(data.error || "Generation failed");
     }
 
     return { status: "processing" };
-  }
+  },
 };

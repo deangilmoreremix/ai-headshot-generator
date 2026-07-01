@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Client-side Supabase client
+// Client-side Supabase client (browser)
 export const supabase = ((() => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) {
-    if (typeof window === 'undefined') {
-      throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    if (typeof window !== 'undefined') {
+      return null;
     }
     return null;
   }

@@ -15,7 +15,7 @@ export async function POST(req) {
 
     return NextResponse.json({ request_id: result.request_id });
   } catch (error) {
-    console.error('[HEADSHOT_API_ERROR]', error);
+    console.error('[GENERATE_API_ERROR]', error);
     return NextResponse.json({ error: error.message || 'Internal Error' }, { status: 500 });
   }
 }

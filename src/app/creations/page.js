@@ -17,14 +17,17 @@ export default function CreationsPage() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [typeFilter, setTypeFilter] = useState('all');
 
   useEffect(() => {
     fetchCreations();
-  }, []);
+  }, [typeFilter]);
 
   const fetchCreations = async () => {
     try {
-      const res = await fetch("/api/creations");
+      const params = new URLSearchParams();
+      if (typeFilter !== 'all') params.set('type', typeFilter);
+      const res = await fetch(`/api/creations${params.toString() ? `?${params.toString()}` : ''}`);
       const data = await res.json();
       if (res.ok) {
         setCreations(data);
@@ -59,7 +62,7 @@ export default function CreationsPage() {
 
   return (
     <div className="flex-1 bg-transparent overflow-y-auto custom-scrollbar p-4 md:p-12">
-      <header className="max-w-7xl mx-auto mb-10 space-y-3 pt-4 md:pt-0">
+      <header className="max-w-7xl mx-auto mb-10 space-y-4 pt-4 md:pt-0">
         <div className="flex items-center gap-3 text-primary-500 mb-1">
           <FaCalendarAlt className="text-sm" />
           <span className="text-[10px] font-semibold uppercase tracking-[0.4em]">
@@ -74,6 +77,23 @@ export default function CreationsPage() {
           <br className="hidden md:block" />
           Quick access to your visual nodes.
         </p>
+
+        <div className="flex rounded-lg border border-glass-border overflow-hidden w-fit">
+          {['all', 'image', 'video'].map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => { setTypeFilter(t); setLoading(true); }}
+              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                typeFilter === t
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-glass-bg text-muted hover:text-foreground'
+              }`}
+            >
+              {t === 'all' ? 'All' : t === 'image' ? 'Images' : 'Videos'}
+            </button>
+          ))}
+        </div>
       </header>
 
       <div className="max-w-7xl mx-auto">
