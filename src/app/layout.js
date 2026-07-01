@@ -1,6 +1,7 @@
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import { Providers } from "@/components/Providers";
 
 const font = Outfit({ subsets: ["latin"] });
 
@@ -10,15 +11,15 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  const theme = process.env.NEXT_PUBLIC_THEME || 'indigo';
-
   return (
-    <html lang="en" className="h-dvh w-full transition-colors duration-500" data-theme={theme} style={{ colorScheme: 'light' }}>
+    <html lang="en" className="h-dvh w-full transition-colors duration-500" style={{ colorScheme: 'light' }}>
       <body className={`${font.className} h-dvh w-full flex flex-col antialiased transition-colors duration-500`}>
-        <Navbar />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {children}
-        </div>
+        <Providers>
+          <Navbar />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {children}
+          </div>
+        </Providers>
       </body>
     </html>
   );

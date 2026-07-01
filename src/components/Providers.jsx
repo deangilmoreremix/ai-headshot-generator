@@ -1,6 +1,7 @@
 "use client";
 
-// No-op Providers - all session/auth wrapping removed
+import { ThemeProvider } from "./ThemeProvider";
+
 export function Providers({ children }) {
-  return children;
+  return <ThemeProvider>{children}</ThemeProvider>;
 }
