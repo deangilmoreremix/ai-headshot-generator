@@ -17,14 +17,7 @@ export async function POST(req) {
       .eq("request_id", requestId)
       .single();
 
-    if (fetchError) {
-      if (fetchError.code !== "PGRST116") {
-        console.error("[MUAPI_WEBHOOK_ERROR]", fetchError);
-      }
-      return NextResponse.json({ error: "Creation not found" }, { status: 404 });
-    }
-
-    if (!creation) {
+    if (fetchError || !creation) {
       return NextResponse.json({ error: "Creation not found" }, { status: 404 });
     }
 
@@ -40,9 +33,14 @@ export async function POST(req) {
     const storedUrls = [];
 
     for (const url of outputs) {
+      if (!url || typeof url !== "string") continue;
+
       try {
         const imageRes = await fetch(url);
-        if (!imageRes.ok) throw new Error(`Failed to fetch image: ${imageRes.status}`);
+        if (!imageRes.ok) {
+          console.warn(`[MUAPI_WEBHOOK] Skipping unreachable image: ${url} (status ${imageRes.status})`);
+          continue;
+        }
 
         const blob = await imageRes.blob();
         const ext = url.split(".").pop()?.split("?")[0] || "jpg";
@@ -64,8 +62,15 @@ export async function POST(req) {
         storedUrls.push(publicData.publicUrl);
       } catch (err) {
         console.error("[MUAPI_WEBHOOK_IMAGE_UPLOAD_ERROR]", err);
-        storedUrls.push(url);
       }
+    }
+
+    if (storedUrls.length === 0) {
+      await supabase
+        .from("creations")
+        .update({ status: "failed", error: "No images could be retrieved from generation service" })
+        .eq("id", creation.id);
+      return NextResponse.json({ success: true, fallback: true });
     }
 
     const imageUrl = JSON.stringify(storedUrls);

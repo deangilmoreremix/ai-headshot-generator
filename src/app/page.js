@@ -9,8 +9,6 @@ import {
   FaPlus,
   FaTrash,
   FaImages,
-  FaVideo,
-  FaImage,
 } from 'react-icons/fa';
 import { FiDownload } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,51 +23,15 @@ const ASPECT_RATIOS = [
 ];
 
 const PHOTO_CATEGORIES = [
-  'LinkedIn',
-  'Tinder',
-  'Bumble',
-  'OldMoney',
-  'Cyberpunk',
-  'CEO',
-  'CleanGirl',
-  'DarkAcademia',
-  'Anime',
-  'Doctor',
-  'Lawyer',
-  'MobWife',
-  'Bali',
-  '90s',
-  'Fitness',
-  'Christmas',
-  'Halloween',
-  'EuropeanElegance',
-  'ChampionSportsMoment',
-  'JobSwapDaydream',
-  'TravelTheWorld',
-  'DatingPack',
-  'FlashPosePerfection',
-  'CapAndGown',
-  'CorporateBoss',
-  'RocknRollLuxury',
-  'TheBigWeddingDay',
-  'RusticCharm',
-  'DressedToImpress',
-  'IdentificationPhoto',
-  'DontMissYourProm',
-  'GoddessOfNature',
-  'BlackAndWhiteMagic',
-  'HomelyComforts',
-  'BalloonsBalloonsBalloons',
-  'BeautyBlooms',
-  'SuperheroAdventure',
-  'BoldFashionStatements',
-  'FantasyOutfits',
-  'OnTheCatwalk',
-  'HalloweenHorror',
-  'CosplayGalore',
-  'Ghibli',
-  'Pixar',
-  'SpiderVerse',
+  'LinkedIn', 'Tinder', 'Bumble', 'OldMoney', 'Cyberpunk', 'CEO', 'CleanGirl',
+  'DarkAcademia', 'Anime', 'Doctor', 'Lawyer', 'MobWife', 'Bali', '90s',
+  'Fitness', 'Christmas', 'Halloween', 'EuropeanElegance', 'ChampionSportsMoment',
+  'JobSwapDaydream', 'TravelTheWorld', 'DatingPack', 'FlashPosePerfection',
+  'CapAndGown', 'CorporateBoss', 'RocknRollLuxury', 'TheBigWeddingDay',
+  'RusticCharm', 'DressedToImpress', 'IdentificationPhoto', 'DontMissYourProm',
+  'GoddessOfNature', 'BlackAndWhiteMagic', 'HomelyComforts', 'BalloonsBalloonsBalloons',
+  'BeautyBlooms', 'SuperheroAdventure', 'BoldFashionStatements', 'FantasyOutfits',
+  'OnTheCatwalk', 'HalloweenHorror', 'CosplayGalore', 'Ghibli', 'Pixar', 'SpiderVerse',
 ].sort();
 
 const HeadshotCarousel = () => {
@@ -90,6 +52,8 @@ const HeadshotCarousel = () => {
             <img
               src={example.url}
               alt={example.name}
+              loading="lazy"
+              onError={(e) => { e.target.src = 'https://placehold.co/300x400/1e293b/ffffff?text=AI'; }}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             />
             <div className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded-md border border-white/10 flex items-center gap-1.5 shadow-xl">
@@ -105,41 +69,29 @@ const HeadshotCarousel = () => {
   );
 };
 
-const GenerationTypeToggle = ({ type, onChange }) => {
-  const options = [
-    { value: 'image', label: 'Image', icon: FaImage },
-    { value: 'video', label: 'Video', icon: FaVideo },
-  ];
+function ImageWithFallback({ src, alt, className, ...props }) {
+  const [error, setError] = useState(false);
+  const fallback = 'https://placehold.co/600x600/1e293b/ffffff?text=No+Preview';
+
+  if (error || !src) {
+    return <img src={fallback} alt={alt || 'placeholder'} className={className} {...props} />;
+  }
 
   return (
-    <div className="flex rounded-lg border border-glass-border overflow-hidden">
-      {options.map((opt) => {
-        const Icon = opt.icon;
-        const active = type === opt.value;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-              active
-                ? 'bg-primary-500 text-white'
-                : 'bg-glass-bg text-muted hover:text-foreground'
-            }`}
-          >
-            <Icon className="text-xs" />
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
+    <img
+      src={src}
+      alt={alt || ''}
+      loading="lazy"
+      onError={() => setError(true)}
+      className={className}
+      {...props}
+    />
   );
-};
+}
 
 export default function Home() {
   const [isRatioOpen, setIsRatioOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [generationType, setGenerationType] = useState('image');
   const ratioRef = useRef(null);
   const categoryRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -216,18 +168,11 @@ export default function Home() {
 
     const finalImageUrl = referenceImage || newImageUrl;
 
-    if (generationType === 'video') {
-      if (!referenceImage) {
-        setError('Please upload a reference image for video generation.');
-        return;
-      }
-    }
-
     try {
       setLoading(true);
       setError(null);
       setResultUrl(null);
-      setStatusMessage(generationType === 'video' ? 'RENDERING VIDEO STREAM...' : 'CALIBRATING SESSION...');
+      setStatusMessage('CALIBRATING SESSION...');
 
       const res = await fetch('/api/headshot', {
         method: 'POST',
@@ -236,7 +181,7 @@ export default function Home() {
           image_url: finalImageUrl,
           category,
           aspect_ratio: aspectRatio.value,
-          type: generationType,
+          type: 'image',
         }),
       });
 
@@ -255,7 +200,7 @@ export default function Home() {
   };
 
   const pollStatus = async (requestId) => {
-    setStatusMessage(generationType === 'video' ? 'COMPOSING FRAMES...' : 'DEVELOPING PORTRAIT...');
+    setStatusMessage('DEVELOPING PORTRAIT...');
 
     try {
       const res = await fetch('/api/headshot/status', {
@@ -269,7 +214,7 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error || 'Status check failed.');
 
       if (data.status === 'completed') {
-        setResultUrl(data.imageUrl || data.videoUrl);
+        setResultUrl(data.imageUrl);
         setStatusMessage('');
         setLoading(false);
       } else if (data.status === 'failed') {
@@ -283,16 +228,6 @@ export default function Home() {
     }
   };
 
-  const handleDownloadAll = async () => {
-    setDownloading(true);
-    if (Array.isArray(resultUrl)) {
-      for (let i = 0; i < resultUrl.length; i++) {
-        await downloadImage(resultUrl[i], `headshot-${category}-${i + 1}.jpg`);
-      }
-    }
-    setDownloading(false);
-  };
-
   return (
     <div className="flex flex-col-reverse lg:flex-row flex-1 h-full w-full overflow-y-auto lg:overflow-hidden">
       <aside className="w-full lg:w-96 border-t lg:border-t-0 lg:border-r border-glass-border bg-glass-bg backdrop-blur-3xl flex flex-col shrink-0 h-auto lg:h-full lg:overflow-y-auto custom-scrollbar">
@@ -304,18 +239,6 @@ export default function Home() {
         </div>
 
         <div className="flex-1 custom-scrollbar p-6 space-y-6">
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-foreground font-semibold flex items-center gap-2">
-              <div className="w-1 h-1 bg-primary-500 rounded-full" /> Generation Type
-            </label>
-            <GenerationTypeToggle type={generationType} onChange={setGenerationType} />
-            {generationType === 'video' && (
-              <p className="text-[10px] text-muted font-medium uppercase tracking-widest">
-                Video generation may take longer
-              </p>
-            )}
-          </div>
-
           <div className="space-y-3" ref={categoryRef}>
             <label className="text-sm font-medium text-foreground font-semibold flex items-center gap-2">
               <div className="w-1 h-1 bg-primary-500 rounded-full" /> Style Category
@@ -399,14 +322,12 @@ export default function Home() {
                 </div>
                 <div className="p-4 border-2 border-dashed border-glass-border rounded-xl flex flex-col items-center justify-center gap-2 bg-glass-bg/30">
                   <FaImages className="text-muted text-xl opacity-20" />
-                  <span className="text-[10px] text-muted font-bold uppercase tracking-widest">
-                    {generationType === 'video' ? 'Video Upload Required' : 'Single Photo Required'}
-                  </span>
+                  <span className="text-[10px] text-muted font-bold uppercase tracking-widest">Single Photo Required</span>
                 </div>
               </div>
             ) : (
               <div className="relative aspect-square rounded-2xl bg-glass-bg overflow-hidden group border-2 border-primary-500/20">
-                <img src={referenceImage} className="w-full h-full object-cover" />
+                <ImageWithFallback src={referenceImage} className="w-full h-full object-cover" alt="Reference" />
                 <button
                   onClick={() => setReferenceImage(null)}
                   className="absolute top-2 right-2 bg-red-500 p-2 rounded-xl text-white shadow-xl opacity-0 group-hover:opacity-100 transition-all hover:scale-110 active:scale-90"
@@ -466,12 +387,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="p-6 border-t border-glass-border mt-auto space-y-3">
-          {generationType === 'video' && (
-            <p className="text-[9px] text-muted font-medium uppercase tracking-widest text-center">
-              Video generation may take longer
-            </p>
-          )}
+        <div className="p-6 border-t border-glass-border mt-auto">
           <button
             onClick={handleGenerate}
             disabled={loading || (!referenceImage && !newImageUrl)}
@@ -482,9 +398,7 @@ export default function Home() {
             ) : (
               <FaBolt className="text-yellow-400" />
             )}
-            {loading
-              ? (generationType === 'video' ? 'RENDERING...' : 'PROCESSING...')
-              : `Generate ${generationType === 'video' ? 'Video' : 'Headshots'}`}
+            {loading ? 'PROCESSING...' : 'Generate Headshots'}
           </button>
         </div>
       </aside>
@@ -515,7 +429,7 @@ export default function Home() {
                   <div className="space-y-4">
                     <h2 className="text-xl font-semibold tracking-tight uppercase text-foreground drop-shadow-sm">Studio Ready.</h2>
                     <p className="text-muted font-medium text-[10px] uppercase tracking-widest leading-loose">
-                      Upload your reference, select a style, and choose image or video <br /> to manifest your professional portrait.
+                      Upload your reference and select a category <br /> to manifest your professional portrait.
                     </p>
                   </div>
                 </div>
@@ -576,7 +490,13 @@ export default function Home() {
                     <div className="flex items-center justify-between">
                       <h3 className="text-xl font-black uppercase tracking-widest text-foreground">{category} Pack Generated</h3>
                       <button
-                        onClick={handleDownloadAll}
+                        onClick={async () => {
+                          setDownloading(true);
+                          for (let i = 0; i < resultUrl.length; i++) {
+                            await downloadImage(resultUrl[i], `headshot-${category}-${i + 1}.jpg`);
+                          }
+                          setDownloading(false);
+                        }}
                         disabled={downloading}
                         className="px-6 py-2 bg-primary-500 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest flex items-center gap-2 hover:bg-primary-600 transition-all shadow-lg"
                       >
@@ -589,11 +509,7 @@ export default function Home() {
                           key={idx}
                           className="relative group rounded-2xl overflow-hidden border border-glass-border aspect-[3/4] bg-glass-bg"
                         >
-                          {generationType === 'video' ? (
-                            <video src={url} className="w-full h-full object-cover" controls />
-                          ) : (
-                            <img src={url} className="w-full h-full object-cover" />
-                          )}
+                          <ImageWithFallback src={url} className="w-full h-full object-cover" alt={`Result ${idx + 1}`} />
                           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <button
                               onClick={() => downloadImage(url, `headshot-${category}-${idx + 1}.jpg`)}
@@ -608,19 +524,11 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="relative group rounded-3xl overflow-hidden shadow-2xl border border-glass-border">
-                    {generationType === 'video' ? (
-                      <video
-                        src={resultUrl}
-                        className="max-h-[80vh] w-auto h-auto"
-                        controls
-                      />
-                    ) : (
-                      <img src={resultUrl} className="max-h-[80vh] w-auto h-auto" />
-                    )}
+                    <ImageWithFallback src={resultUrl} className="max-h-[80vh] w-auto h-auto" alt="Result" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 p-8 flex flex-col justify-end">
                       <div className="flex items-end justify-between">
                         <div className="space-y-3">
-                          <h3 className="text-white text-lg font-semibold tracking-tight uppercase">{category} {generationType === 'video' ? 'Video' : 'Portrait'}</h3>
+                          <h3 className="text-white text-lg font-semibold tracking-tight uppercase">{category} Portrait</h3>
                           <div className="px-3 py-1.5 inline-block rounded-lg bg-glass-bg backdrop-blur-3xl text-[10px] font-semibold text-white">
                             {aspectRatio.label}
                           </div>

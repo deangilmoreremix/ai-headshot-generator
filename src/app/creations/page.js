@@ -11,8 +11,28 @@ import { useRouter } from "next/navigation";
 import { downloadImage } from "@/lib/utils";
 import { FiDownload } from "react-icons/fi";
 
+function ImageWithFallback({ src, alt, className, ...props }) {
+  const [error, setError] = useState(false);
+  const fallback = 'https://placehold.co/600x600/1e293b/ffffff?text=No+Preview';
+
+  if (error || !src) {
+    return <img src={fallback} alt={alt || 'placeholder'} className={className} {...props} />;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt || ''}
+      loading="lazy"
+      onError={() => setError(true)}
+      className={className}
+      {...props}
+    />
+  );
+}
+
 export default function CreationsPage() {
-   const router = useRouter();
+  const router = useRouter();
   const [creations, setCreations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
@@ -42,9 +62,9 @@ export default function CreationsPage() {
   const parseImageUrl = (url) => {
     try {
       const parsed = JSON.parse(url);
-      return Array.isArray(parsed) ? parsed : [url];
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : [url].filter(Boolean);
     } catch (e) {
-      return [url];
+      return [url].filter(Boolean);
     }
   };
 
@@ -131,7 +151,7 @@ export default function CreationsPage() {
                   >
                     {item.status === "completed" ? (
                       <div className="w-full h-full relative">
-                        <img
+                        <ImageWithFallback
                           src={thumbnail}
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                           alt={item.category}
@@ -200,7 +220,7 @@ export default function CreationsPage() {
                       <div className="grid grid-cols-2 gap-2">
                         {selectedImage.urls.map((url, idx) => (
                           <div key={idx} className="relative group rounded-lg overflow-hidden border border-glass-border aspect-[3/4]">
-                            <img src={url} className="w-full h-full object-cover" alt={`Result ${idx + 1}`} />
+                            <ImageWithFallback src={url} className="w-full h-full object-cover" alt={`Result ${idx + 1}`} />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <button
                                 onClick={() => downloadImage(url, `creation-${selectedImage.category}-${idx + 1}.jpg`)}
@@ -213,7 +233,7 @@ export default function CreationsPage() {
                         ))}
                       </div>
                     ) : (
-                      <img
+                      <ImageWithFallback
                         src={selectedImage.urls[0]}
                         className="h-full w-full object-contain"
                         alt="Creation"
