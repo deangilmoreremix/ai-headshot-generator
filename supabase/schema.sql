@@ -11,8 +11,8 @@ create table if not exists users (
 );
 
 -- Creations table
--- type column added: 'image' or 'video' (default 'image')
--- user_id is nullable text (so public no-auth users can still be tracked via session_id)
+-- type column: 'image' or 'video' (default 'image')
+-- user_id is nullable text (public no-auth tracking via session_id)
 create table if not exists creations (
   id uuid primary key default gen_random_uuid(),
   user_id text,
@@ -44,37 +44,37 @@ alter table creations enable row level security;
 alter table uploads enable row level security;
 
 -- Public read on users
-create policy if not exists "Allow public read access on users"
+create policy "Allow public read access on users"
   on users for select
   using (true);
 
 -- Public insert/update on users
-create policy if not exists "Allow public insert on users"
+create policy "Allow public insert on users"
   on users for insert
   using (true);
 
-create policy if not exists "Allow public update on users"
+create policy "Allow public update on users"
   on users for update
   using (true);
 
 -- Public full access on creations
-create policy if not exists "Allow public read access on creations"
+create policy "Allow public read access on creations"
   on creations for select
   using (true);
 
-create policy if not exists "Allow public insert on creations"
+create policy "Allow public insert on creations"
   on creations for insert
   using (true);
 
-create policy if not exists "Allow public update on creations"
+create policy "Allow public update on creations"
   on creations for update
   using (true);
 
 -- Public full access on uploads
-create policy if not exists "Allow public insert on uploads"
+create policy "Allow public insert on uploads"
   on uploads for insert
   using (true);
 
-create policy if not exists "Allow public read access on uploads"
+create policy "Allow public read access on uploads"
   on uploads for select
   using (true);
