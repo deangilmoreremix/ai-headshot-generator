@@ -18,6 +18,9 @@ export async function POST(req) {
       .single();
 
     if (fetchError || !creation) {
+      if (fetchError && fetchError.code !== "PGRST116") {
+        console.error("[MUAPI_WEBHOOK_ERROR]", fetchError);
+      }
       return NextResponse.json({ error: "Creation not found" }, { status: 404 });
     }
 
@@ -73,14 +76,12 @@ export async function POST(req) {
       return NextResponse.json({ success: true, fallback: true });
     }
 
-    const imageUrl = JSON.stringify(storedUrls);
-
     await supabase
       .from("creations")
       .update({
         status: "completed",
-        image_url: imageUrl,
-        video_url: creation.type === "video" ? imageUrl : null,
+        image_url: storedUrls,
+        video_url: creation.type === "video" ? storedUrls : null,
         is_pack: true,
       })
       .eq("id", creation.id);

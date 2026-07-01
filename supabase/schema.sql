@@ -1,18 +1,9 @@
 -- Supabase Schema for AI Headshot Generator (no-auth, public access)
 -- Supports both images and videos in creations table
 
--- Users table (kept for backwards compatibility; public access)
-create table if not exists users (
-  id uuid primary key default gen_random_uuid(),
-  email text unique,
-  credits integer default 0,
-  created_at timestamp with time zone default now(),
-  updated_at timestamp with time zone default now()
-);
-
 -- Creations table
--- type column: 'image' or 'video' (default 'image')
--- user_id is nullable text (public no-auth tracking via session_id)
+-- user_id: session ID from cookie
+-- type: 'image' or 'video' (default 'image')
 create table if not exists creations (
   id uuid primary key default gen_random_uuid(),
   user_id text,
@@ -21,8 +12,9 @@ create table if not exists creations (
   aspect_ratio text,
   request_id text unique,
   status text default 'processing',
-  image_url text,
-  video_url text,
+  image_url text[],
+  video_url text[],
+  thumbnail_url text,
   error text,
   is_pack boolean default false,
   created_at timestamp with time zone default now(),
@@ -39,23 +31,8 @@ create table if not exists uploads (
 );
 
 -- Enable Row Level Security
-alter table users enable row level security;
 alter table creations enable row level security;
 alter table uploads enable row level security;
-
--- Public read on users
-create policy "Allow public read access on users"
-  on users for select
-  using (true);
-
--- Public insert/update on users
-create policy "Allow public insert on users"
-  on users for insert
-  using (true);
-
-create policy "Allow public update on users"
-  on users for update
-  using (true);
 
 -- Public full access on creations
 create policy "Allow public read access on creations"

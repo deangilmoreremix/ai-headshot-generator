@@ -46,7 +46,8 @@ serve(async (req) => {
       throw new Error(`MUAPI error ${muapiRes.status}: ${errorText}`);
     }
 
-    const { request_id } = await muapiRes.json();
+    const muapiData = await muapiRes.json();
+    const request_id = muapiData.request_id || muapiData.id;
     if (!request_id) {
       throw new Error("No request_id received from MUAPI");
     }
@@ -56,16 +57,16 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const tenantId = session_id || "default";
+    const userId = session_id || "default";
 
     const { error } = await supabase.from("creations").insert({
-      tenant_id: tenantId,
+      user_id: userId,
       category,
       aspect_ratio,
       request_id,
       status: "processing",
       type,
-      metadata: { image_url },
+      image_url: null,
     });
 
     if (error) throw error;

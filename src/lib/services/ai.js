@@ -40,7 +40,9 @@ export const AIService = {
     if (data.status === "completed") {
       let imageUrl = data.image_url;
       try {
-        imageUrl = JSON.parse(imageUrl);
+        if (typeof imageUrl === 'string') {
+          imageUrl = JSON.parse(imageUrl);
+        }
       } catch (e) {}
       return { status: "completed", imageUrl };
     }
@@ -50,5 +52,5 @@ export const AIService = {
     }
 
     return { status: "processing" };
-  },
+  }
 };

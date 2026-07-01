@@ -31,6 +31,23 @@ function ImageWithFallback({ src, alt, className, ...props }) {
   );
 }
 
+function normalizeCreation(item) {
+  if (!item) return item;
+  const imageUrls = item.image_url;
+  let urls = [];
+  if (Array.isArray(imageUrls)) {
+    urls = imageUrls.filter(Boolean);
+  } else if (typeof imageUrls === 'string') {
+    try {
+      const parsed = JSON.parse(imageUrls);
+      urls = Array.isArray(parsed) ? parsed.filter(Boolean) : [imageUrls];
+    } catch (e) {
+      urls = imageUrls ? [imageUrls] : [];
+    }
+  }
+  return { ...item, urls };
+}
+
 export default function CreationsPage() {
   const router = useRouter();
   const [creations, setCreations] = useState([]);
@@ -56,15 +73,6 @@ export default function CreationsPage() {
       console.error("Error fetching creations:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const parseImageUrl = (url) => {
-    try {
-      const parsed = JSON.parse(url);
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : [url].filter(Boolean);
-    } catch (e) {
-      return [url].filter(Boolean);
     }
   };
 
@@ -136,9 +144,9 @@ export default function CreationsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <AnimatePresence>
               {creations.map((item, index) => {
-                const urls = parseImageUrl(item.imageUrl);
-                const thumbnail = urls[0];
-                const isPack = urls.length > 1;
+                const normalized = normalizeCreation(item);
+                const thumbnail = normalized.urls[0];
+                const isPack = normalized.urls.length > 1;
 
                 return (
                   <motion.div
@@ -147,7 +155,7 @@ export default function CreationsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                     className="group relative rounded-xl bg-glass-bg backdrop-blur-3xl border border-glass-border aspect-square cursor-pointer overflow-hidden shadow-sm hover:shadow-md transition-shadow transition-all"
-                    onClick={() => setSelectedImage({ ...item, urls })}
+                    onClick={() => setSelectedImage(normalized)}
                   >
                     {item.status === "completed" ? (
                       <div className="w-full h-full relative">
@@ -158,7 +166,7 @@ export default function CreationsPage() {
                         />
                         {isPack && (
                           <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 rounded-md text-[8px] font-black text-white uppercase tracking-widest backdrop-blur-md">
-                            Pack of {urls.length}
+                            Pack of {normalized.urls.length}
                           </div>
                         )}
                       </div>
@@ -181,7 +189,7 @@ export default function CreationsPage() {
                       </p>
                       <div className="flex items-center justify-between">
                         <span className="text-[9px] font-semibold text-primary-400 uppercase tracking-widest">
-                          {item.aspectRatio}
+                          {item.aspect_ratio}
                         </span>
                         <div className="w-8 h-8 rounded-lg bg-glass-bg backdrop-blur-3xl/10 backdrop-blur-md flex items-center justify-center text-white">
                           <FaExpandAlt className="text-[10px]" />
@@ -273,7 +281,7 @@ export default function CreationsPage() {
                     <div className="grid grid-cols-2 gap-8">
                       <div className="space-y-1.5">
                         <div className="text-[9px] font-semibold text-muted uppercase tracking-widest">Ratio</div>
-                        <div className="text-xs text-foreground font-medium">{selectedImage.aspectRatio}</div>
+                        <div className="text-xs text-foreground font-medium">{selectedImage.aspect_ratio}</div>
                       </div>
                       <div className="space-y-1.5">
                         <div className="text-[9px] font-semibold text-muted uppercase tracking-widest">Resolution</div>
@@ -284,13 +292,13 @@ export default function CreationsPage() {
                     <div className="space-y-1.5">
                       <div className="text-[9px] font-semibold text-muted uppercase tracking-widest">Timestamp</div>
                       <div className="text-[11px] text-muted">
-                        {new Date(selectedImage.createdAt).toLocaleString('en-US', { 
+                        {selectedImage.created_at ? new Date(selectedImage.created_at).toLocaleString('en-US', { 
                           month: 'long', 
                           day: 'numeric',
                           year: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit'
-                        })}
+                        }) : 'Unknown'}
                       </div>
                     </div>
                   </div>

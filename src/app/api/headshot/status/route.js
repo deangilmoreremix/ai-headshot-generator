@@ -23,7 +23,12 @@ export async function POST(req) {
 
     if (data.status === 'completed') {
       let imageUrl = data.image_url;
-      try { imageUrl = JSON.parse(imageUrl); } catch (e) {}
+      if (Array.isArray(imageUrl)) {
+        return NextResponse.json({ status: 'completed', imageUrl });
+      }
+      if (typeof imageUrl === 'string') {
+        try { imageUrl = JSON.parse(imageUrl); } catch (e) {}
+      }
       return NextResponse.json({ status: 'completed', imageUrl });
     }
 
